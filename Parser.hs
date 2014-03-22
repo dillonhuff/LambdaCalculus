@@ -47,6 +47,17 @@ parenTerm = do
 	return t
 
 pAbstraction = do
+	abstr <- pParenAbstr
+		<|> pAbstr
+	return abstr
+
+pParenAbstr = do
+	lTok LPAREN
+	abstr <- pAbstr
+	lTok RPAREN
+	return abstr
+
+pAbstr = do
 	lTok LAMBDA
 	x <- pVar
 	lTok DOT

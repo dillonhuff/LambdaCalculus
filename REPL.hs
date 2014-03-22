@@ -40,6 +40,9 @@ showState state = do
 quit = do
 	putStrLn "Goodbye!"
 
-lambdaCalcCommand replState command = doCommand replState
+lambdaCalcCommand replState command = do
+	let result = parseToks $ programToks command
+	putStrLn $ show result
+	doCommand replState
 
 welcomeMessage = "Hello and welcome to Dillon Huff's lambda calculus interpreter!"
