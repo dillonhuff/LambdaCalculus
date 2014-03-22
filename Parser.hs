@@ -13,7 +13,7 @@ instance Show TermSyn where
 	show = showTermSyn
 
 showTermSyn :: TermSyn -> String
-showTermSyn (TS name t) = show name ++ " = " ++ show t
+showTermSyn (TS name t) = name ++ " = " ++ show t
 
 parseToks :: [PosTok] -> [TermSyn]
 parseToks ts = case parse lambdaProg "Lambda Calc" ts of
