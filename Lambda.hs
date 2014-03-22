@@ -1,4 +1,4 @@
-module Lambda(Term, var, ab, ap) where
+module Lambda(Term, isVar, var, ab, ap) where
 
 data Term
 	= Var String
@@ -8,6 +8,10 @@ data Term
 
 instance Show Term where
 	show = showTerm
+
+isVar :: Term -> Bool
+isVar (Var _) = True
+isVar _ = False
 
 showTerm :: Term -> String
 showTerm (Var name) = name
