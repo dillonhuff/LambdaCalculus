@@ -1,4 +1,4 @@
-module Lambda(var, ab, ap) where
+module Lambda(Term, var, ab, ap) where
 
 data Term
 	= Var String
