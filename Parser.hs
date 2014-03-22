@@ -1,5 +1,6 @@
 module Parser(
-	parseToks) where
+	parseToks,
+	TermSyn) where
 
 import Lambda
 import Lexer
