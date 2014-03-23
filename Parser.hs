@@ -37,8 +37,20 @@ pTermSynDef = do
 	return $ TS (termName $ tok name) body
 
 pTerm = do
-	t <- pVar
+	t <- pMultiTerm
+	return t
+
+pSTerm = do
+	st <- pParenTerm
+		<|> pVar
 		<|> pTypeSynonym
+		<|> pAbstr
+	return st
+
+pParenTerm = do
+	lTok LPAREN
+	t <- pTerm
+	lTok RPAREN
 	return t
 
 pVar = do
@@ -48,6 +60,22 @@ pVar = do
 pTypeSynonym = do
 	s <- termSyn
 	return $ getTerm $ tok s
+
+pAbstr = do
+	lTok LAMBDA
+	v <- pVar
+	lTok DOT
+	t <- pTerm
+	return $ ab v t
+
+pMultiTerm = do
+	terms <- many1 pSTerm
+	return $ multiTerm terms
+
+multiTerm :: [Term] -> Term
+multiTerm [] = error $ "Term list is empty"
+multiTerm [t] = t
+multiTerm (t:n:ts) = foldl  ap (ap t n) ts
 
 termSyn :: (Monad m) => ParsecT [PosTok] u m PosTok
 termSyn = tokenPrim show updatePos termSynTok

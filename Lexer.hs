@@ -1,5 +1,5 @@
 module Lexer(
-	programToks, isVarTok,
+	programToks, isVarTok, var,
 	PosTok, pos, tok, getTerm, isTermSyn, termName,
 	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, T)) where
 
