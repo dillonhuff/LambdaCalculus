@@ -1,7 +1,7 @@
 module Lexer(
 	programToks, isVarTok,
 	PosTok, pos, tok, getTerm, isTermSyn, termName,
-	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, T, S)) where
+	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, T)) where
 
 import Lambda
 import Text.ParserCombinators.Parsec
@@ -25,7 +25,7 @@ instance Eq PosTok where
 
 ptEq (PT t1 _) (PT t2 _) = t1 == t2
 
-data Tok = ASSIGN | DOT | LAMBDA | LPAREN | RPAREN | T Term | S String
+data Tok = ASSIGN | DOT | LAMBDA | LPAREN | RPAREN | T Term
 	deriving (Eq, Show)
 
 isVarTok :: Tok -> Bool
@@ -37,11 +37,13 @@ getTerm (T t) = t
 getTerm x = error $ show x ++ " is not a term"
 
 isTermSyn :: Tok -> Bool
-isTermSyn (S _) = True
+isTermSyn (T t) = isSyn t
+isTermSyn _ = False
 
 termName :: Tok -> String
-termName (S name) = name
-termName other = error $ show other ++ " is not a term synonym"
+termName (T t) = if isSyn t
+	then show t
+	else error $ show t ++ " is not a term synonym"
 
 resToOps = [("=", ASSIGN), (".", DOT), ("\\", LAMBDA), ("(", LPAREN), (")", RPAREN)]
 
@@ -71,7 +73,7 @@ pTermSyn = do
 	p <- getPosition
 	startChar <- upper
 	rest <- many alphaNum
-	return $ PT (S (startChar:rest)) p
+	return $ PT (T $ syn (startChar:rest)) p
 
 pReserved = do
 	p <- getPosition

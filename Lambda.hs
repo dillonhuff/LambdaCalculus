@@ -1,13 +1,19 @@
-module Lambda(Term, isVar, var, ab, ap) where
+module Lambda(
+	Term, isSyn, isVar, var, syn, ab, ap) where
 
 data Term
 	= Var String
 	| Abstr Term Term
 	| Ap Term Term
+	| Syn String
 	deriving (Eq)
 
 instance Show Term where
 	show = showTerm
+
+isSyn :: Term -> Bool
+isSyn (Syn _) = True
+isSyn _ = False
 
 isVar :: Term -> Bool
 isVar (Var _) = True
@@ -17,9 +23,13 @@ showTerm :: Term -> String
 showTerm (Var name) = name
 showTerm (Abstr (Var x) t) = "(\\" ++ x ++ ". " ++ show t ++ ")"
 showTerm (Ap t1 t2) = "(" ++ show t1 ++ show t2 ++ ")"
+showTerm (Syn name) = name
 
 var :: String -> Term
 var s = Var s
+
+syn :: String -> Term
+syn s = Syn s
 
 ab :: Term -> Term -> Term
 ab (Var x) t = Abstr (Var x) t

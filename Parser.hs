@@ -1,5 +1,6 @@
 module Parser(
 	parseToks,
+	parseTerm,
 	TermSyn) where
 
 import Lambda
@@ -16,69 +17,37 @@ showTermSyn :: TermSyn -> String
 showTermSyn (TS name t) = name ++ " = " ++ show t
 
 parseToks :: [PosTok] -> [TermSyn]
-parseToks ts = case parse lambdaProg "Lambda Calc" ts of
+parseToks ts = case parse pLambdaProg "Lambda Calc" ts of
 	Left err -> error $ show err
 	Right defs -> defs
 
-lambdaProg = do
-	termSyns <- many termSynDef
+parseTerm :: [PosTok] -> Term
+parseTerm ts = case parse pTerm "Lambda Calc" ts of
+	Left err -> error $ show err
+	Right t -> t
+
+pLambdaProg = do
+	termSyns <- many pTermSynDef
 	return termSyns
 
-termSynDef = do
+pTermSynDef = do
 	name <- termSyn
 	lTok ASSIGN
-	body <- term
+	body <- pTerm
 	return $ TS (termName $ tok name) body
 
-term = do
+pTerm = do
 	t <- pVar
-		<|> pAbstraction
-		<|> pApplication
+		<|> pTypeSynonym
 	return t
 
 pVar = do
 	v <- varTok
 	return $ getTerm $ tok v
 
-parenTerm = do
-	lTok LPAREN
-	t <- term
-	lTok RPAREN
-	return t
-
-pAbstraction = do
-	abstr <- pParenAbstr
-		<|> pAbstr
-	return abstr
-
-pParenAbstr = do
-	lTok LPAREN
-	abstr <- pAbstr
-	lTok RPAREN
-	return abstr
-
-pAbstr = do
-	lTok LAMBDA
-	x <- pVar
-	lTok DOT
-	t <- term
-	return $ ab x t
-
-pApplication = do
-	app <- pParenAppl
-		<|> pAppl
-	return app
-
-pParenAppl = do
-	lTok LPAREN
-	app <- pAppl
-	lTok RPAREN
-	return app
-
-pAppl = do
-	t1 <- term
-	t2 <- term
-	return $ ap t1 t2
+pTypeSynonym = do
+	s <- termSyn
+	return $ getTerm $ tok s
 
 termSyn :: (Monad m) => ParsecT [PosTok] u m PosTok
 termSyn = tokenPrim show updatePos termSynTok
