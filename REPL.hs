@@ -1,5 +1,6 @@
 module REPL(startREPL) where
 
+import Lambda
 import Lexer
 import Parser
 import System.IO
@@ -31,7 +32,7 @@ loadFile state = do
 	putStrLn $ "File Contents " ++ lamdaProg
 	let newDefs = parseToks $ programToks lamdaProg
 	hClose fHandle
-	doCommand (state ++ newDefs)
+	doCommand (state ++ (map termSynToPair newDefs))
 
 showState state = do
 	putStrLn $ "Current state is:\n" ++ (show state)
@@ -41,8 +42,8 @@ quit = do
 	putStrLn "Goodbye!"
 
 lambdaCalcCommand replState command = do
-	let result = parseToks $ programToks command
-	putStrLn $ show result
+	let result = parseTerm $ programToks command
+	putStrLn $ show $ termBetaReduce replState result
 	doCommand replState
 
 welcomeMessage = "Hello and welcome to Dillon Huff's lambda calculus interpreter!"

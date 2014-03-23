@@ -1,7 +1,8 @@
 module Parser(
 	parseToks,
 	parseTerm,
-	TermSyn) where
+	TermSyn,
+	termSynToPair) where
 
 import Lambda
 import Lexer
@@ -9,6 +10,9 @@ import Text.Parsec
 
 data TermSyn = TS String Term
 	deriving (Eq)
+
+termSynToPair :: TermSyn -> (String, Term)
+termSynToPair (TS name t) = (name, t)
 
 instance Show TermSyn where
 	show = showTermSyn
@@ -34,6 +38,7 @@ pTermSynDef = do
 	name <- termSyn
 	lTok ASSIGN
 	body <- pTerm
+	lTok SEMICOLON
 	return $ TS (termName $ tok name) body
 
 pTerm = do

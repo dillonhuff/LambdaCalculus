@@ -1,5 +1,6 @@
 module Lambda(
-	Term, isSyn, isVar, var, syn, ab, ap) where
+	Term, isSyn, isVar, var, syn, ab, ap,
+	betaR, reduce, termBetaReduce) where
 
 data Term
 	= Var String
@@ -55,6 +56,26 @@ sub a@(Abstr (Var x) t) (Var y, n) = if y == x
 betaR :: Term -> Term -> Term
 betaR (Abstr x t) v = sub t (x, v)
 betaR u v = error $ show u ++ " is not a lambda abstraction"
+
+reduce :: Term -> Term
+reduce (Ap (Abstr x t) v) = reduce $ sub t (x, v)
+reduce t = t
+
+termBetaReduce :: [(String, Term)] -> Term -> Term
+termBetaReduce s (Ap (Syn n) t2) = termBetaReduce s (Ap (subSyn s (Syn n)) t2)
+termBetaReduce s (Ap t1 (Syn n)) = termBetaReduce s (Ap t1 (subSyn s (Syn n)))
+termBetaReduce s (Syn n) = termBetaReduce s (subSyn s (Syn n))
+termBetaReduce s (Ap (Abstr x t) v) = termBetaReduce s $ sub t (x, v)
+termBetaReduce s (Ap t1 t2) = Ap
+	(termBetaReduce s t1)
+	(termBetaReduce s t2)
+termBetaReduce _ t = t
+
+subSyn :: [(String, Term)] -> Term -> Term
+subSyn syns (Syn name) = case lookup name syns of
+	Just t -> t
+	Nothing -> error $ "The name " ++ name ++ " is not currently defined"
+subSyn _ t = t
 
 removeAllInst :: (Eq a) => a -> [a] -> [a]
 removeAllInst _ [] = []

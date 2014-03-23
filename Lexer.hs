@@ -1,7 +1,7 @@
 module Lexer(
 	programToks, isVarTok, var,
 	PosTok, pos, tok, getTerm, isTermSyn, termName,
-	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, T)) where
+	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, SEMICOLON, T)) where
 
 import Lambda
 import Text.ParserCombinators.Parsec
@@ -25,7 +25,7 @@ instance Eq PosTok where
 
 ptEq (PT t1 _) (PT t2 _) = t1 == t2
 
-data Tok = ASSIGN | DOT | LAMBDA | LPAREN | RPAREN | T Term
+data Tok = ASSIGN | DOT | LAMBDA | LPAREN | RPAREN  | SEMICOLON | T Term
 	deriving (Eq, Show)
 
 isVarTok :: Tok -> Bool
@@ -45,7 +45,9 @@ termName (T t) = if isSyn t
 	then show t
 	else error $ show t ++ " is not a term synonym"
 
-resToOps = [("=", ASSIGN), (".", DOT), ("\\", LAMBDA), ("(", LPAREN), (")", RPAREN)]
+resToOps =
+	[("=", ASSIGN), (".", DOT), ("\\", LAMBDA), ("(", LPAREN)
+	,(")", RPAREN), (";", SEMICOLON)]
 
 programToks :: String -> [PosTok]
 programToks progText = case parse pToks "Lambda Calc" progText of
@@ -82,6 +84,7 @@ pReserved = do
 		<|> string "."
 		<|> string "("
 		<|> string ")"
+		<|> string ";"
 	return $ case lookup r resToOps of
 		Just op -> PT op p
 		Nothing -> error $ show r ++ " is not a valid input"
