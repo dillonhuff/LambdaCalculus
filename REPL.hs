@@ -43,7 +43,7 @@ quit = do
 
 lambdaCalcCommand replState command = do
 	let result = parseTerm $ programToks command
-	putStrLn $ show $ termBetaReduce replState result
+	putStrLn $ show $ betaReduce replState result
 	doCommand replState
 
 welcomeMessage = "Hello and welcome to Dillon Huff's lambda calculus interpreter!"

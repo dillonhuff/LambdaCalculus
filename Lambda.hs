@@ -1,6 +1,6 @@
 module Lambda(
 	Term, isSyn, isVar, var, syn, ab, ap,
-	betaR, reduce, termBetaReduce) where
+	betaReduce, reduce) where
 
 data Term
 	= Var String
@@ -53,23 +53,25 @@ sub a@(Abstr (Var x) t) (Var y, n) = if y == x
 	then a
 	else Abstr (Var x) $ sub t (Var y, n)
 
-betaR :: Term -> Term -> Term
-betaR (Abstr x t) v = sub t (x, v)
-betaR u v = error $ show u ++ " is not a lambda abstraction"
+betaReduce :: [(String, Term)] -> Term -> Term
+betaReduce s t = betaR $ termSynReplace s t
+
+betaR :: Term -> Term
+betaR (Ap (Abstr x t) v) = sub t (x, v)
+betaR (Ap t1 t2) = betaR (Ap (betaR t1) t2)
+betaR t = t
 
 reduce :: Term -> Term
 reduce (Ap (Abstr x t) v) = reduce $ sub t (x, v)
 reduce t = t
 
-termBetaReduce :: [(String, Term)] -> Term -> Term
-termBetaReduce s (Ap (Syn n) t2) = termBetaReduce s (Ap (subSyn s (Syn n)) t2)
-termBetaReduce s (Ap t1 (Syn n)) = termBetaReduce s (Ap t1 (subSyn s (Syn n)))
-termBetaReduce s (Syn n) = termBetaReduce s (subSyn s (Syn n))
-termBetaReduce s (Ap (Abstr x t) v) = termBetaReduce s $ sub t (x, v)
-termBetaReduce s (Ap t1 t2) = Ap
-	(termBetaReduce s t1)
-	(termBetaReduce s t2)
-termBetaReduce _ t = t
+termSynReplace :: [(String, Term)] -> Term -> Term
+termSynReplace _ (Var x) = Var x
+termSynReplace s (Abstr x t) = (Abstr x (termSynReplace s t))
+termSynReplace s (Ap t1 t2) = (Ap (termSynReplace s t1) (termSynReplace s t2))
+termSynReplace s (Syn name) = case lookup name s of
+	Just t -> t
+	Nothing -> error $ name ++ " is not a defined term synonym"
 
 subSyn :: [(String, Term)] -> Term -> Term
 subSyn syns (Syn name) = case lookup name syns of
