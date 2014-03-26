@@ -1,5 +1,5 @@
 module Lexer(
-	programToks, isVarTok, isNumTok, var,
+	programToks, isVarTok, isNumTok, isBoolTok,
 	PosTok, pos, tok, getTerm, isTermSyn, termName,
 	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, SEMICOLON, T)) where
 
@@ -30,11 +30,15 @@ data Tok = ASSIGN | DOT | LAMBDA | LPAREN | RPAREN  | SEMICOLON | T Term
 
 isVarTok :: Tok -> Bool
 isVarTok (T t) = isVar t
-isVarTok other = False
+isVarTok _ = False
 
 isNumTok :: Tok -> Bool
 isNumTok (T t) = isNum t
-isNumTok other = False
+isNumTok _ = False
+
+isBoolTok :: Tok -> Bool
+isBoolTok (T t) = isBool t
+isBoolTok _ = False
 
 getTerm :: Tok -> Term
 getTerm (T t) = t
@@ -64,10 +68,11 @@ pToks = do
 	return ts
 
 pTok = do
-	t <- pVar
+	t <- try pReserved
+		<|> pVar
 		<|> pNum
+		<|> pBool
 		<|> pTermSyn
-		<|> pReserved
 	return t
 
 pVar = do
@@ -87,6 +92,12 @@ pNum = do
 	digs <- many1 digit
 	return $ PT (T $ num (read digs)) p
 
+pBool = do
+	p <- getPosition
+	value <- try (string "#t")
+		<|> (string "#f")
+	return $ PT (T $ bool value) p
+
 pReserved = do
 	p <- getPosition
 	r <- string "="
@@ -99,6 +110,9 @@ pReserved = do
 		<|> string "-"
 		<|> string "*"
 		<|> string "/"
+		<|> string "and"
+		<|> string "or"
+		<|> string "not"
 	return $ case lookup r resToOps of
 		Just op -> PT op p
 		Nothing -> PT (T $ syn r) p

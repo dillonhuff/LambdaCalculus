@@ -49,6 +49,7 @@ pSTerm = do
 	st <- pParenTerm
 		<|> pVar
 		<|> pNum
+		<|> pBool
 		<|> pTypeSynonym
 		<|> pAbstr
 	return st
@@ -66,6 +67,10 @@ pVar = do
 pNum = do
 	n <- numTok
 	return $ getTerm $ tok n
+
+pBool = do
+	val <- boolTok
+	return $ getTerm $ tok val
 
 pTypeSynonym = do
 	s <- termSyn
@@ -101,6 +106,11 @@ numTok :: (Monad m) => ParsecT [PosTok] u m PosTok
 numTok = tokenPrim show updatePos numTok
 	where
 		numTok pt = if isNumTok (tok pt) then Just pt else Nothing
+
+boolTok :: (Monad m) => ParsecT [PosTok] u m PosTok
+boolTok = tokenPrim show updatePos boolTok
+	where
+		boolTok pt = if isBoolTok (tok pt) then Just pt else Nothing
 
 lTok :: (Monad m) => Tok -> ParsecT [PosTok] u m PosTok
 lTok x = tokenPrim show updatePos testTok

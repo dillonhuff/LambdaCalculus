@@ -1,15 +1,16 @@
 module Lambda(
-	Term, isSyn, isVar, isNum, var, syn, num, ab, ap,
+	Term, isSyn, isVar, isNum, isBool, bool, var, syn, num, ab, ap,
 	betaReduce,
 	stdlib) where
 
 data Term
 	= Var String
 	| Num Int
+	| Boolean Bool
 	| Abstr Term Term
 	| Ap Term Term
 	| Syn String
-	| BAp String Term Term
+	| BAp String Term Term -- Builtin application for data/operations not normally in lambda calculus
 	deriving (Eq)
 
 instance Show Term where
@@ -27,9 +28,14 @@ isNum :: Term -> Bool
 isNum (Num _) = True
 isNum _ = False
 
+isBool :: Term -> Bool
+isBool (Boolean _) = True
+isBool _ = False
+
 showTerm :: Term -> String
 showTerm (Var name) = name
 showTerm (Num n) = show n
+showTerm (Boolean b) = if b then "#t" else "#f"
 showTerm (Abstr (Var x) t) = "(\\" ++ x ++ ". " ++ show t ++ ")"
 showTerm (Ap t1 t2) = "(" ++ show t1 ++ show t2 ++ ")"
 showTerm (Syn name) = name
@@ -37,6 +43,13 @@ showTerm (BAp name t1 t2) = "(@" ++ name ++ " " ++ show t1 ++ " " ++ show t2 ++ 
 
 var :: String -> Term
 var s = Var s
+
+bool :: String -> Term
+bool str = if str == "#t"
+	then (Boolean True)
+	else if str == "#f"
+		then (Boolean False)
+		else error $ str ++ " is not a boolean value"
 
 syn :: String -> Term
 syn s = Syn s
@@ -61,6 +74,7 @@ sub (Var x) (Var y, n) = if y == x
 	then n
 	else (Var x)
 sub (Num n) _ = Num n
+sub (Boolean b) _ = Boolean b
 sub (Ap t1 t2) s = Ap (sub t1 s) (sub t2 s)
 sub (BAp name t1 t2) s = BAp name (sub t1 s) (sub t2 s)
 sub a@(Abstr (Var x) t) (Var y, n) = if y == x
@@ -79,6 +93,7 @@ betaR t = t
 termSynReplace :: [(String, Term)] -> Term -> Term
 termSynReplace _ (Var x) = Var x
 termSynReplace _ (Num n) = Num n
+termSynReplace _ (Boolean b) = Boolean b
 termSynReplace s (Abstr x t) = (Abstr x (termSynReplace s t))
 termSynReplace s (Ap t1 t2) = (Ap (termSynReplace s t1) (termSynReplace s t2))
 termSynReplace s (BAp name t1 t2) = BAp name (termSynReplace s t1) (termSynReplace s t2)
@@ -102,11 +117,16 @@ removeAllInst v (n:ns) = if v == n
 -- and their application
 
 builtinBetaR :: Term -> Term
-builtinBetaR t@(BAp name t1 t2) = case lookup name builtinAps of
-	Just reduceFunc -> reduceFunc t
-	Nothing -> error $ show t ++ " is not a builtin application"
+builtinBetaR t@(BAp name (Num _) (Num _)) =
+	case lookup name builtinArithmeticBinOps of
+		Just reduceFunc -> reduceFunc t
+		Nothing -> error $ show t ++ " is not a builtin arithmetic application"
+builtinBetaR t@(BAp name (Boolean _) (Boolean _)) =
+	case lookup name builtinBooleanBinOps of
+		Just reduceFunc -> reduceFunc t
+		Nothing -> error $ show t ++ " is not a builtin arithmetic application"
 
-builtinAps =
+builtinArithmeticBinOps =
 	[("+", reduceArithBinop (+))
 	,("-", reduceArithBinop (-))
 	,("*", reduceArithBinop (*))
@@ -114,15 +134,29 @@ builtinAps =
 
 reduceArithBinop :: (Int -> Int -> Int) -> Term -> Term
 reduceArithBinop op (BAp name (Num n1) (Num n2)) = Num (op n1 n2)
-reduceArithBinop op (BAp name t1 t2) = reduceArithBinop op (BAp name (betaR t1) (betaR t2))
+reduceArithBinop op (BAp name t1 t2) =
+	reduceArithBinop op (BAp name (betaR t1) (betaR t2))
 
-stdlib = arithmetic ++ primitives
+builtinBooleanBinOps =
+	[("and", reduceBoolBinop (&&))
+	,("or", reduceBoolBinop (||))]
+
+reduceBoolBinop :: (Bool -> Bool -> Bool) -> Term -> Term
+reduceBoolBinop op (BAp name (Boolean b1) (Boolean b2)) = Boolean (op b1 b2)
+reduceBoolBinop op (BAp name b1 b2) =
+	reduceBoolBinop op (BAp name (betaR b1) (betaR b2))
+
+stdlib = arithmetic ++ boolean ++ primitives
 
 arithmetic =
 	[("+", (Abstr (Var "x") (Abstr (Var "y") (BAp "+" (Var "x") (Var "y")))))
 	,("-", (Abstr (Var "x") (Abstr (Var "y") (BAp "-" (Var "x") (Var "y")))))
 	,("*", (Abstr (Var "x") (Abstr (Var "y") (BAp "*" (Var "x") (Var "y")))))
 	,("/", (Abstr (Var "x") (Abstr (Var "y") (BAp "/" (Var "x") (Var "y")))))]
+
+boolean =
+	[("and", (Abstr (Var "x") (Abstr (Var "y") (BAp "and" (Var "x") (Var "y")))))
+	,("or", (Abstr (Var "x") (Abstr (Var "y") (BAp "or" (Var "x") (Var "y")))))]
 
 primitives =
 	[("I", (Abstr (Var "x") (Var "x")))
