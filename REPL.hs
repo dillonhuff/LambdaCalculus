@@ -8,7 +8,7 @@ import Text.ParserCombinators.Parsec
 
 startREPL = do
 	putStrLn welcomeMessage
-	doCommand arithmetic
+	doCommand stdlib
 
 doCommand replState = do
 	putStr ">>> "

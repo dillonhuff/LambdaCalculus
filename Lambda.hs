@@ -1,7 +1,7 @@
 module Lambda(
 	Term, isSyn, isVar, isNum, var, syn, num, ab, ap,
 	betaReduce,
-	arithmetic) where
+	stdlib) where
 
 data Term
 	= Var String
@@ -118,8 +118,18 @@ removeAllInst v (n:ns) = if v == n
 	else n:(removeAllInst v ns)
 
 -- Builtin definitions for libraries
+stdlib = arithmetic ++ primitives
+
 arithmetic =
 	[("+", (Abstr (Var "x") (Abstr (Var "y") (Plus (Var "x") (Var "y")))))
 	,("-", (Abstr (Var "x") (Abstr (Var "y") (Minus (Var "x") (Var "y")))))
 	,("*", (Abstr (Var "x") (Abstr (Var "y") (Times (Var "x") (Var "y")))))
 	,("/", (Abstr (Var "x") (Abstr (Var "y") (Divide (Var "x") (Var "y")))))]
+
+primitives =
+	[("I", (Abstr (Var "x") (Var "x")))
+	,("K", (Abstr (Var "x") (Abstr (Var "y") (Var "x"))))
+	,("S", (Abstr (Var "x") (Abstr (Var "y") (Abstr (Var "z")
+		(Ap
+			(Ap (Var "x") (Var "z"))
+			(Ap (Var "y") (Var "z")))))))]
