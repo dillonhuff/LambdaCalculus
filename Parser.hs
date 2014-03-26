@@ -50,6 +50,7 @@ pSTerm = do
 		<|> pVar
 		<|> pNum
 		<|> pBool
+		<|> pIfThenElse
 		<|> pTypeSynonym
 		<|> pAbstr
 	return st
@@ -71,6 +72,15 @@ pNum = do
 pBool = do
 	val <- boolTok
 	return $ getTerm $ tok val
+
+pIfThenElse = do
+	lTok IF
+	condition <- pTerm
+	lTok THEN
+	thenTerm <- pTerm
+	lTok ELSE
+	elseTerm <- pTerm
+	return $ ifThenElse condition thenTerm elseTerm
 
 pTypeSynonym = do
 	s <- termSyn

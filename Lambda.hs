@@ -1,5 +1,7 @@
 module Lambda(
-	Term, isSyn, isVar, isNum, isBool, bool, var, syn, num, ab, ap,
+	Term, isSyn, isVar, isNum, isBool,
+	bool, var, syn, num, ab, ap,
+	ifThenElse,
 	betaReduce,
 	stdlib) where
 
@@ -12,6 +14,7 @@ data Term
 	| Syn String
 	| Binop String Term Term
 	| Unop String Term
+	| ITE Term Term Term -- if then else
 	deriving (Eq)
 
 instance Show Term where
@@ -42,6 +45,7 @@ showTerm (Ap t1 t2) = "(" ++ show t1 ++ show t2 ++ ")"
 showTerm (Syn name) = name
 showTerm (Binop name t1 t2) = "(@" ++ name ++ " " ++ show t1 ++ " " ++ show t2 ++ ")"
 showTerm (Unop name t) = "(@" ++ name ++ " " ++ show t ++ ")"
+showTerm (ITE c t e) = "if " ++ show c ++ " then " ++ show t ++ " else " ++ show e ++ " "
 
 var :: String -> Term
 var s = Var s
@@ -52,6 +56,14 @@ bool str = if str == "#t"
 	else if str == "#f"
 		then (Boolean False)
 		else error $ str ++ " is not a boolean value"
+
+boolVal :: Term -> Bool
+boolVal (Boolean b) = b
+boolVal other = error $ show other ++ " is not a boolean"
+
+ifThenElse :: Term -> Term -> Term -> Term
+ifThenElse cond thenTerm elseTerm =
+	ITE cond thenTerm elseTerm
 
 syn :: String -> Term
 syn s = Syn s
@@ -92,6 +104,7 @@ betaR (Ap (Abstr x t) v) = betaR $ sub t (x, v)
 betaR (Ap t1 t2) = betaR (Ap (betaR t1) (betaR t2))
 betaR (Binop name t1 t2) = builtinBinopBetaR (Binop name (betaR t1) (betaR t2))
 betaR (Unop name t) = builtinUnopBetaR (Unop name (betaR t))
+betaR (ITE c t e) = if boolVal (betaR c) then betaR t else betaR e
 betaR t = t
 
 termSynReplace :: [(String, Term)] -> Term -> Term
@@ -101,6 +114,10 @@ termSynReplace _ (Boolean b) = Boolean b
 termSynReplace s (Abstr x t) = (Abstr x (termSynReplace s t))
 termSynReplace s (Ap t1 t2) = (Ap (termSynReplace s t1) (termSynReplace s t2))
 termSynReplace s (Binop name t1 t2) = Binop name (termSynReplace s t1) (termSynReplace s t2)
+termSynReplace s (ITE c t e) = ITE
+	(termSynReplace s c)
+	(termSynReplace s t)
+	(termSynReplace s e)
 termSynReplace s (Syn name) = case lookup name s of
 	Just t -> t
 	Nothing -> error $ name ++ " is not a defined term synonym"
@@ -117,7 +134,8 @@ removeAllInst v (n:ns) = if v == n
 	then removeAllInst v ns
 	else n:(removeAllInst v ns)
 
--- Facilities for dealing with built in data types and
+-- Facilities for dealing with built in data types
+-- not normally included in lambda calculus and
 -- and their application
 
 builtinBinopBetaR :: Term -> Term
