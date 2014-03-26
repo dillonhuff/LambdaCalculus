@@ -10,7 +10,8 @@ data Term
 	| Abstr Term Term
 	| Ap Term Term
 	| Syn String
-	| BAp String Term Term -- Builtin application for data/operations not normally in lambda calculus
+	| Binop String Term Term
+	| Unop String Term
 	deriving (Eq)
 
 instance Show Term where
@@ -39,7 +40,8 @@ showTerm (Boolean b) = if b then "#t" else "#f"
 showTerm (Abstr (Var x) t) = "(\\" ++ x ++ ". " ++ show t ++ ")"
 showTerm (Ap t1 t2) = "(" ++ show t1 ++ show t2 ++ ")"
 showTerm (Syn name) = name
-showTerm (BAp name t1 t2) = "(@" ++ name ++ " " ++ show t1 ++ " " ++ show t2 ++ ")"
+showTerm (Binop name t1 t2) = "(@" ++ name ++ " " ++ show t1 ++ " " ++ show t2 ++ ")"
+showTerm (Unop name t) = "(@" ++ name ++ " " ++ show t ++ ")"
 
 var :: String -> Term
 var s = Var s
@@ -76,7 +78,8 @@ sub (Var x) (Var y, n) = if y == x
 sub (Num n) _ = Num n
 sub (Boolean b) _ = Boolean b
 sub (Ap t1 t2) s = Ap (sub t1 s) (sub t2 s)
-sub (BAp name t1 t2) s = BAp name (sub t1 s) (sub t2 s)
+sub (Binop name t1 t2) s = Binop name (sub t1 s) (sub t2 s)
+sub (Unop name t) s = Unop name (sub t s)
 sub a@(Abstr (Var x) t) (Var y, n) = if y == x
 	then a
 	else Abstr (Var x) $ sub t (Var y, n)
@@ -87,7 +90,8 @@ betaReduce s t = betaR $ termSynReplace s t
 betaR :: Term -> Term
 betaR (Ap (Abstr x t) v) = betaR $ sub t (x, v)
 betaR (Ap t1 t2) = betaR (Ap (betaR t1) (betaR t2))
-betaR (BAp name t1 t2) = builtinBetaR (BAp name t1 t2)
+betaR (Binop name t1 t2) = builtinBinopBetaR (Binop name (betaR t1) (betaR t2))
+betaR (Unop name t) = builtinUnopBetaR (Unop name (betaR t))
 betaR t = t
 
 termSynReplace :: [(String, Term)] -> Term -> Term
@@ -96,7 +100,7 @@ termSynReplace _ (Num n) = Num n
 termSynReplace _ (Boolean b) = Boolean b
 termSynReplace s (Abstr x t) = (Abstr x (termSynReplace s t))
 termSynReplace s (Ap t1 t2) = (Ap (termSynReplace s t1) (termSynReplace s t2))
-termSynReplace s (BAp name t1 t2) = BAp name (termSynReplace s t1) (termSynReplace s t2)
+termSynReplace s (Binop name t1 t2) = Binop name (termSynReplace s t1) (termSynReplace s t2)
 termSynReplace s (Syn name) = case lookup name s of
 	Just t -> t
 	Nothing -> error $ name ++ " is not a defined term synonym"
@@ -116,47 +120,82 @@ removeAllInst v (n:ns) = if v == n
 -- Facilities for dealing with built in data types and
 -- and their application
 
-builtinBetaR :: Term -> Term
-builtinBetaR t@(BAp name (Num _) (Num _)) =
+builtinBinopBetaR :: Term -> Term
+builtinBinopBetaR t@(Binop name (Num _) (Num _)) =
 	case lookup name builtinArithmeticBinOps of
 		Just reduceFunc -> reduceFunc t
 		Nothing -> error $ show t ++ " is not a builtin arithmetic application"
-builtinBetaR t@(BAp name (Boolean _) (Boolean _)) =
+builtinBinopBetaR t@(Binop name (Boolean _) (Boolean _)) =
 	case lookup name builtinBooleanBinOps of
 		Just reduceFunc -> reduceFunc t
+		Nothing -> error $ show t ++ " is not a builtin boolean application"
+
+builtinUnopBetaR :: Term -> Term
+builtinUnopBetaR t@(Unop name (Num _)) =
+	case lookup name builtinArithmeticUnOps of
+		Just reduceFunc -> reduceFunc t
 		Nothing -> error $ show t ++ " is not a builtin arithmetic application"
+builtinUnopBetaR t@(Unop name (Boolean _)) =
+	case lookup name builtinBooleanUnOps of
+		Just reduceFunc -> reduceFunc t
+		Nothing -> error $ show t ++ " is not a builtin boolean application"
 
 builtinArithmeticBinOps =
 	[("+", reduceArithBinop (+))
-	,("-", reduceArithBinop (-))
 	,("*", reduceArithBinop (*))
 	,("/", reduceArithBinop div)]
 
+builtinArithmeticUnOps =
+	[("-", reduceArithUnop (*(-1)))]
+
 reduceArithBinop :: (Int -> Int -> Int) -> Term -> Term
-reduceArithBinop op (BAp name (Num n1) (Num n2)) = Num (op n1 n2)
-reduceArithBinop op (BAp name t1 t2) =
-	reduceArithBinop op (BAp name (betaR t1) (betaR t2))
+reduceArithBinop op (Binop name (Num n1) (Num n2)) = Num (op n1 n2)
+reduceArithBinop op (Binop name t1 t2) =
+	reduceArithBinop op (Binop name (betaR t1) (betaR t2))
+
+reduceArithUnop :: (Int -> Int) -> Term -> Term
+reduceArithUnop op (Unop name (Num n)) = Num (op n)
+reduceArithUnop op (Unop name t) =
+	reduceArithUnop op (Unop name (betaR t))
 
 builtinBooleanBinOps =
 	[("and", reduceBoolBinop (&&))
 	,("or", reduceBoolBinop (||))]
 
+builtinBooleanUnOps =
+	[("not", reduceBoolUnop not)]
+
 reduceBoolBinop :: (Bool -> Bool -> Bool) -> Term -> Term
-reduceBoolBinop op (BAp name (Boolean b1) (Boolean b2)) = Boolean (op b1 b2)
-reduceBoolBinop op (BAp name b1 b2) =
-	reduceBoolBinop op (BAp name (betaR b1) (betaR b2))
+reduceBoolBinop op (Binop name (Boolean b1) (Boolean b2)) = Boolean (op b1 b2)
+reduceBoolBinop op (Binop name b1 b2) =
+	reduceBoolBinop op (Binop name (betaR b1) (betaR b2))
 
-stdlib = arithmetic ++ boolean ++ primitives
+reduceBoolUnop :: (Bool -> Bool) -> Term -> Term
+reduceBoolUnop op (Unop name (Boolean n)) = Boolean (op n)
+reduceBoolUnop op (Unop name t) =
+	reduceBoolUnop op (Unop name (betaR t))
 
-arithmetic =
-	[("+", (Abstr (Var "x") (Abstr (Var "y") (BAp "+" (Var "x") (Var "y")))))
-	,("-", (Abstr (Var "x") (Abstr (Var "y") (BAp "-" (Var "x") (Var "y")))))
-	,("*", (Abstr (Var "x") (Abstr (Var "y") (BAp "*" (Var "x") (Var "y")))))
-	,("/", (Abstr (Var "x") (Abstr (Var "y") (BAp "/" (Var "x") (Var "y")))))]
+stdlib =
+	arithmeticBinops ++
+	arithmeticUnops ++
+	booleanBinops ++
+	booleanUnops ++
+	primitives
 
-boolean =
-	[("and", (Abstr (Var "x") (Abstr (Var "y") (BAp "and" (Var "x") (Var "y")))))
-	,("or", (Abstr (Var "x") (Abstr (Var "y") (BAp "or" (Var "x") (Var "y")))))]
+arithmeticBinops =
+	[("+", (Abstr (Var "x") (Abstr (Var "y") (Binop "+" (Var "x") (Var "y")))))
+	,("*", (Abstr (Var "x") (Abstr (Var "y") (Binop "*" (Var "x") (Var "y")))))
+	,("/", (Abstr (Var "x") (Abstr (Var "y") (Binop "/" (Var "x") (Var "y")))))]
+
+arithmeticUnops =
+	[("-", (Abstr (Var "x") (Unop "-" (Var "x"))))]
+
+booleanBinops =
+	[("and", (Abstr (Var "x") (Abstr (Var "y") (Binop "and" (Var "x") (Var "y")))))
+	,("or", (Abstr (Var "x") (Abstr (Var "y") (Binop "or" (Var "x") (Var "y")))))]
+
+booleanUnops =
+	[("not", (Abstr (Var "x") (Unop "not" (Var "x"))))]
 
 primitives =
 	[("I", (Abstr (Var "x") (Var "x")))
