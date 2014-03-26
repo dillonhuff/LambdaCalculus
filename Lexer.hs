@@ -1,5 +1,5 @@
 module Lexer(
-	programToks, isVarTok, var,
+	programToks, isVarTok, isNumTok, var,
 	PosTok, pos, tok, getTerm, isTermSyn, termName,
 	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, SEMICOLON, T)) where
 
@@ -32,6 +32,10 @@ isVarTok :: Tok -> Bool
 isVarTok (T t) = isVar t
 isVarTok other = False
 
+isNumTok :: Tok -> Bool
+isNumTok (T t) = isNum t
+isNumTok other = False
+
 getTerm :: Tok -> Term
 getTerm (T t) = t
 getTerm x = error $ show x ++ " is not a term"
@@ -61,6 +65,7 @@ pToks = do
 
 pTok = do
 	t <- pVar
+		<|> pNum
 		<|> pTermSyn
 		<|> pReserved
 	return t
@@ -77,6 +82,11 @@ pTermSyn = do
 	rest <- many alphaNum
 	return $ PT (T $ syn (startChar:rest)) p
 
+pNum = do
+	p <- getPosition
+	digs <- many1 digit
+	return $ PT (T $ num (read digs)) p
+
 pReserved = do
 	p <- getPosition
 	r <- string "="
@@ -85,6 +95,10 @@ pReserved = do
 		<|> string "("
 		<|> string ")"
 		<|> string ";"
+		<|> string "+"
+		<|> string "-"
+		<|> string "*"
+		<|> string "/"
 	return $ case lookup r resToOps of
 		Just op -> PT op p
-		Nothing -> error $ show r ++ " is not a valid input"
+		Nothing -> PT (T $ syn r) p
