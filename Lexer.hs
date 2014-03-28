@@ -3,6 +3,7 @@ module Lexer(
 	PosTok, pos, tok, getTerm, isTermSyn, termName,
 	Tok(ASSIGN, DOT, LAMBDA, LPAREN, RPAREN, SEMICOLON, IF, THEN, ELSE, DEF, T)) where
 
+import ErrorHandling
 import Lambda
 import Text.ParserCombinators.Parsec
 
@@ -27,7 +28,23 @@ ptEq (PT t1 _) (PT t2 _) = t1 == t2
 
 data Tok = ASSIGN | DOT | LAMBDA | LPAREN | RPAREN  | SEMICOLON |
 	IF | THEN | ELSE | DEF | T Term
-	deriving (Eq, Show)
+	deriving (Eq)
+
+instance Show Tok where
+	show = showTok
+
+showTok :: Tok -> String
+showTok ASSIGN = "="
+showTok DOT = "."
+showTok LAMBDA = "\\"
+showTok LPAREN = "("
+showTok RPAREN = ")"
+showTok SEMICOLON = ";"
+showTok IF = "if"
+showTok THEN = "then"
+showTok ELSE = "else"
+showTok DEF = "def"
+showTok (T t) = show t
 
 isVarTok :: Tok -> Bool
 isVarTok (T t) = isVar t
@@ -59,10 +76,10 @@ resToOps =
 	,(")", RPAREN), (";", SEMICOLON), ("if", IF), ("then", THEN)
 	,("else", ELSE), ("def", DEF)]
 
-programToks :: String -> [PosTok]
+programToks :: String -> ThrowsError [PosTok]
 programToks progText = case parse pToks "Lambda Calc" progText of
-	Left err -> error $ show err
-	Right ts -> ts
+	Left err -> Left $ Parse err
+	Right ts -> Right $ ts
 
 pToks = do
 	spaces

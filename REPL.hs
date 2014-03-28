@@ -23,10 +23,10 @@ doMetaCommand state command = case command of
 	":load" -> loadFile state
 	":state"-> showState state
 	":quit" -> quit
-	_ -> reportBadMetaCommand state command
+	_ -> reportError state (Repl (command ++ " is not a valid meta-command"))
 
-reportBadMetaCommand state command = do
-	putStrLn $ show (Repl (command ++ " is not a valid meta-command"))
+reportError state error = do
+	putStrLn $ show error
 	doCommand state
 
 loadFile state = do
@@ -35,9 +35,10 @@ loadFile state = do
 	fHandle <- openFile fileName ReadMode
 	lamdaProg <- hGetContents fHandle
 	putStrLn $ "File Contents " ++ lamdaProg
-	let newDefs = parseToks $ programToks lamdaProg
 	hClose fHandle
-	doCommand (state ++ (map termSynToPair newDefs))
+	case parseProgram lamdaProg of
+		Left err -> reportError state err
+		Right newDefs -> doCommand (state ++ (map termSynToPair newDefs))
 
 showState state = do
 	putStrLn $ "Current state is:\n" ++ (show state)
@@ -47,21 +48,19 @@ quit = do
 	putStrLn "Goodbye!"
 
 lambdaCalcCommand replState command = do
-	parseReplInput replState $ programToks command
+	parseReplInput replState command
 
 parseReplInput state toks = case parseTerm toks of
-	Just expr -> showOutput state (show $ betaReduce state expr)
-	Nothing -> doCommand (installDef state toks)
+	Left err -> reportError state err
+	Right term -> showOutput state (show $ betaReduce state term)
 
 showOutput state out = do
 	putStrLn out
 	doCommand state
 
-installDef :: [(String, Term)] -> [PosTok] -> [(String, Term)]
-installDef state toks = (termSynToPair newDef):state
-	where
-		newDef = case parseTermSynDef toks of
-			Just def -> def
-			Nothing -> error $ show toks ++ " Invalid input"
+installDef :: [(String, Term)] -> [PosTok] -> ThrowsError [(String, Term)]
+installDef state toks = case parseTermSynDef toks of
+	Just def -> Right ((termSynToPair def):state)
+	Nothing -> Left (Repl (show toks ++ " Invalid input"))
 
 welcomeMessage = "Hello and welcome to Dillon Huff's lambda calculus interpreter!"

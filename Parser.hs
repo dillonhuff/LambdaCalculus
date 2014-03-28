@@ -1,10 +1,11 @@
 module Parser(
-	parseToks,
+	parseProgram,
 	parseTerm,
 	parseTermSynDef,
 	TermSyn,
 	termSynToPair) where
 
+import ErrorHandling
 import Lambda
 import Lexer
 import Text.Parsec
@@ -21,20 +22,29 @@ instance Show TermSyn where
 showTermSyn :: TermSyn -> String
 showTermSyn (TS name t) = name ++ " = " ++ show t
 
-parseToks :: [PosTok] -> [TermSyn]
+parseProgram :: String -> ThrowsError [TermSyn]
+parseProgram text = case programToks text of
+	Left lexErr -> Left lexErr
+	Right programTokens -> case parseToks programTokens of
+		Left parseErr -> Left parseErr
+		Right termSyns -> Right termSyns
+
+parseToks :: [PosTok] -> ThrowsError [TermSyn]
 parseToks ts = case parse pLambdaProg "Lambda Calc" ts of
-	Left err -> error $ show err
-	Right defs -> defs
+	Left err -> Left $ Parse err
+	Right defs -> Right defs
 
 parseTermSynDef :: [PosTok] -> Maybe TermSyn
 parseTermSynDef ts = case parse pTermSynDef "Lambda Calc" ts of
 	Left err -> Nothing
 	Right tDef -> Just tDef
 
-parseTerm :: [PosTok] -> Maybe Term
-parseTerm ts = case parse pTerm "Lambda Calc" ts of
-	Left err -> Nothing
-	Right t -> Just t
+parseTerm :: String -> ThrowsError Term
+parseTerm ts = case programToks ts of
+	Left err -> Left err
+	Right t -> case parse pTerm "Lambda Calc" t of
+		Left err -> Left $ Parse err
+		Right term -> Right term
 
 pLambdaProg = do
 	termSyns <- many pTermSynDef

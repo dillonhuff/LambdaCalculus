@@ -1,4 +1,5 @@
 module ErrorHandling(
+	ThrowsError,
 	LCError(Parse, Repl, Default),
 	extractValue) where
 
@@ -17,7 +18,7 @@ data LCError
 
 showError :: LCError -> String
 showError (Parse parseError) = "Parse error at " ++ show parseError
-showError (Repl replError) = "REPL: " ++ replError
+showError (Repl replError) = "REPL Error: " ++ replError
 showError (Default str) = str
 
 instance Show LCError where
