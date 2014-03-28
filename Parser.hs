@@ -1,6 +1,7 @@
 module Parser(
 	parseToks,
 	parseTerm,
+	parseTermSynDef,
 	TermSyn,
 	termSynToPair) where
 
@@ -25,16 +26,22 @@ parseToks ts = case parse pLambdaProg "Lambda Calc" ts of
 	Left err -> error $ show err
 	Right defs -> defs
 
-parseTerm :: [PosTok] -> Term
+parseTermSynDef :: [PosTok] -> Maybe TermSyn
+parseTermSynDef ts = case parse pTermSynDef "Lambda Calc" ts of
+	Left err -> Nothing
+	Right tDef -> Just tDef
+
+parseTerm :: [PosTok] -> Maybe Term
 parseTerm ts = case parse pTerm "Lambda Calc" ts of
-	Left err -> error $ show err
-	Right t -> t
+	Left err -> Nothing
+	Right t -> Just t
 
 pLambdaProg = do
 	termSyns <- many pTermSynDef
 	return termSyns
 
 pTermSynDef = do
+	lTok DEF
 	name <- termSyn
 	lTok ASSIGN
 	body <- pTerm
