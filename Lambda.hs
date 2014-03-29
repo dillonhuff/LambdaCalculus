@@ -17,6 +17,19 @@ data Term
 	| ITE Term Term Term -- if then else
 	deriving (Eq)
 
+data Type
+	= INT
+	| CHAR
+	| Comp Type Type
+
+instance Show Type where
+	show = showType
+
+showType :: Type -> String
+showType INT = "Int"
+showType CHAR = "Char"
+showType (Comp t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
+
 instance Show Term where
 	show = showTerm
 
