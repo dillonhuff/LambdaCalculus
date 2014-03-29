@@ -1,6 +1,6 @@
 module ErrorHandling(
 	ThrowsError,
-	LCError(Parse, Repl, Default),
+	LCError(Parse, Repl, Default, TypeErr),
 	extractValue) where
 
 import Control.Monad.Error
@@ -14,6 +14,7 @@ extractValue (Right val) = val
 data LCError
 	= Parse ParseError
 	| Repl String
+	| TypeErr String
 	| Default String
 
 showError :: LCError -> String

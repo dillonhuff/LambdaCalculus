@@ -3,7 +3,10 @@ module Lambda(
 	bool, var, syn, num, ab, ap,
 	ifThenElse,
 	betaReduce,
-	stdlib) where
+	Type(ANY, INT, CHAR, BOOL, Comp), inferType, 
+	stdlib,) where
+
+import ErrorHandling
 
 data Term
 	= Var String
@@ -18,17 +21,42 @@ data Term
 	deriving (Eq)
 
 data Type
-	= INT
+	= ANY
+	| INT
+	| BOOL
 	| CHAR
 	| Comp Type Type
+	deriving (Eq)
 
 instance Show Type where
 	show = showType
 
 showType :: Type -> String
+showType ANY = "Any"
+showType BOOL = "Bool"
 showType INT = "Int"
-showType CHAR = "Char"
 showType (Comp t1 t2) = "(" ++ show t1 ++ " -> " ++ show t2 ++ ")"
+
+inferType :: Term -> ThrowsError Type
+inferType t = infT ANY t
+
+infT :: Type -> Term -> ThrowsError Type
+infT bound (Var _) = Right bound
+infT bound (Boolean _) = if subsumed bound BOOL
+	then Right BOOL
+	else Left $ typeError bound BOOL
+infT bound (Num _) = if subsumed bound INT
+	then Right INT
+	else Left $ typeError bound INT
+
+subsumed :: Type -> Type -> Bool
+subsumed ANY _ = True
+subsumed expected actual = if expected == actual
+	then True
+	else False
+
+typeError :: Type -> Type -> LCError
+typeError expected actual = TypeErr ("Expected type: " ++ show expected ++ " but was type " ++ show actual)
 
 instance Show Term where
 	show = showTerm
